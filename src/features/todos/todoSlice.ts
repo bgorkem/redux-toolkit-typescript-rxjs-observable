@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, nanoid, Action, createAction } from "@reduxjs/toolkit";
 import { RootState } from "../../app/store";
 
-import { map, mergeMap, filter, delay, catchError } from "rxjs/operators";
+import { map, mergeMap, filter, delay, catchError, startWith } from "rxjs/operators";
 import { Observable, of } from "rxjs";
 import { ajax } from "rxjs/ajax";
 export type Todo = {
@@ -15,6 +15,7 @@ export interface TodosState {
   newTodo: string;
   ping: number;
   pong: number;
+  pending: boolean;
   error?: string;
 }
 
@@ -23,6 +24,7 @@ const initialState: TodosState = {
   newTodo: "",
   ping: 0,
   pong: 0,
+  pending: false,
 };
 
 let start = Date.now();
@@ -57,18 +59,24 @@ export const todosSlice = createSlice({
     },
 
     addTodoAsyncFulfilled: (state, action: PayloadAction<Todo>) => {
+      state.pending = false;
       state.todos.push(action.payload);
     },
 
-    addTodoAsyncFailed: (state, action: PayloadAction<string>) => {
-      state.error = action.payload;
+    addTodoAsyncPending: (state) => {
+      state.pending = true;
+    },
+
+    addTodoAsyncFailed: (state, action: PayloadAction<Error>) => {
+      state.pending = false;
+      state.error = action.payload.message;
     },
 
     ping: (state, action) => {
       state.ping = action.payload;
     },
 
-    pong: (state, action) => {
+    pong: (state) => {
       state.pong = Date.now() - start;
     },
 
@@ -80,7 +88,8 @@ export const todosSlice = createSlice({
 
 export const selectTodos = (state: RootState) => state.todos;
 
-export const { addTodo, setNewTodo, ping, addTodoAsyncFulfilled, addTodoAsyncFailed } = todosSlice.actions;
+export const { addTodo, setNewTodo, ping, addTodoAsyncFulfilled, addTodoAsyncFailed, addTodoAsyncPending } =
+  todosSlice.actions;
 
 // More examples here: https://www.freecodecamp.org/news/beginners-guide-to-rxjs-redux-observables/
 // example of an observable watching for ping action to reply with pong..
@@ -94,7 +103,9 @@ export const pingEpic = (action$: Observable<Action>): Observable<PayloadAction<
     })
   );
 
-export const addTodoAsyncEpic = (action$: Observable<Action>): Observable<PayloadAction<unknown>> =>
+const x = addTodoAsyncPending();
+
+export const addTodoAsyncEpic = (action$: Observable<Action>): Observable<PayloadAction<any>> =>
   action$.pipe(
     filter(addTodoAsync.match),
     mergeMap((requestAction) =>
@@ -110,7 +121,8 @@ export const addTodoAsyncEpic = (action$: Observable<Action>): Observable<Payloa
             const data = ajaxResponse.response as { id: string; createdAt: string };
             return addTodoAsyncFulfilled({ id: data.id, text: requestAction.payload, createdAt: data.createdAt });
           }),
-          catchError((error: Error) => of(addTodoAsyncFailed(error.message)))
+          catchError((err) => of(addTodoAsyncFailed(err))),
+          startWith(addTodoAsyncPending())
         )
     )
   );
