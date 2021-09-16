@@ -40,18 +40,6 @@ export const addTodoAsync = createAsyncThunk("todos/addTodoAsync", async (text: 
   return { id: data.id, text, createdAt: data.createdAt };
 });
 
-// More examples here: https://www.freecodecamp.org/news/beginners-guide-to-rxjs-redux-observables/
-// example of an observable watching for ping action to reply with pong..
-export const pingEpic = (action$: Observable<Action>) =>
-  action$.pipe(
-    filter((action) => action.type === "todos/ping"),
-    delay(1000),
-    map((a) => {
-      const k = a as PayloadAction<number>;
-      return { type: "todos/pong", payload: k.payload };
-    })
-  );
-
 export const todosSlice = createSlice({
   name: "todos",
   initialState,
@@ -89,5 +77,17 @@ export const todosSlice = createSlice({
 export const selectTodos = (state: RootState) => state.todos;
 
 export const { addTodo, setNewTodo, ping } = todosSlice.actions;
+
+// More examples here: https://www.freecodecamp.org/news/beginners-guide-to-rxjs-redux-observables/
+// example of an observable watching for ping action to reply with pong..
+export const pingEpic = (action$: Observable<Action>) =>
+  action$.pipe(
+    filter(ping.match),
+    delay(1000),
+    map((a) => {
+      const k = a as PayloadAction<number>;
+      return { type: "todos/pong", payload: k.payload };
+    })
+  );
 
 export default todosSlice.reducer;
