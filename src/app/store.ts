@@ -1,9 +1,9 @@
 import { configureStore, ThunkAction, Action } from "@reduxjs/toolkit";
 import { Dispatch } from "react-redux/node_modules/@types/react";
 import counterReducer from "../features/counter/counterSlice";
-import todosReducer, { pingEpic } from "../features/todos/todoSlice";
+import todosReducer, { pingEpic, addTodoAsyncEpic } from "../features/todos/todoSlice";
 
-import { createEpicMiddleware } from "redux-observable";
+import { createEpicMiddleware, combineEpics } from "redux-observable";
 
 const loggerMiddleware = (store: any) => (next: Dispatch<Action>) => (action: Action) => {
   console.log("dispatching", action, store.getState());
@@ -26,7 +26,7 @@ export const store = configureStore({
   },
 });
 
-epicMiddleware.run(pingEpic);
+epicMiddleware.run(combineEpics(pingEpic, addTodoAsyncEpic));
 
 export type AppDispatch = typeof store.dispatch;
 export type RootState = ReturnType<typeof store.getState>;

@@ -1,10 +1,9 @@
-import { createAsyncThunk, createSlice, PayloadAction, nanoid, Action } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction, nanoid, Action, createAction } from "@reduxjs/toolkit";
 import { RootState } from "../../app/store";
 
-import { of } from "rxjs";
-import { mapTo, map, filter, delay } from "rxjs/operators";
-import { Observable } from "rxjs";
-
+import { map, mergeMap, filter, delay, catchError } from "rxjs/operators";
+import { Observable, of } from "rxjs";
+import { ajax } from "rxjs/ajax";
 export type Todo = {
   text: string;
   id: string;
@@ -16,6 +15,7 @@ export interface TodosState {
   newTodo: string;
   ping: number;
   pong: number;
+  error?: string;
 }
 
 const initialState: TodosState = {
@@ -27,18 +27,20 @@ const initialState: TodosState = {
 
 let start = Date.now();
 
-export const addTodoAsync = createAsyncThunk("todos/addTodoAsync", async (text: string) => {
-  const response = await fetch(`https://reqres.in/api/users`, {
-    method: "POST",
-    body: JSON.stringify({
-      name: text,
-      job: "xxx",
-    }),
-  });
+// export const addTodoAsync = createAsyncThunk("todos/addTodoAsync", async (text: string) => {
+//   const response = await fetch(`https://reqres.in/api/users`, {
+//     method: "POST",
+//     body: JSON.stringify({
+//       name: text,
+//       job: "xxx",
+//     }),
+//   });
 
-  const data = (await response.json()) as { id: string; createdAt: string };
-  return { id: data.id, text, createdAt: data.createdAt };
-});
+//   const data = (await response.json()) as { id: string; createdAt: string };
+//   return { id: data.id, text, createdAt: data.createdAt };
+// });
+
+export const addTodoAsync = createAction<string>("todos/addTodoAsync");
 
 export const todosSlice = createSlice({
   name: "todos",
@@ -54,6 +56,14 @@ export const todosSlice = createSlice({
       },
     },
 
+    addTodoAsyncFulfilled: (state, action: PayloadAction<Todo>) => {
+      state.todos.push(action.payload);
+    },
+
+    addTodoAsyncFailed: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+    },
+
     ping: (state, action) => {
       state.ping = action.payload;
     },
@@ -66,21 +76,15 @@ export const todosSlice = createSlice({
       state.newTodo = action.payload;
     },
   },
-
-  extraReducers: (builder) => {
-    builder.addCase(addTodoAsync.fulfilled, (state, action: PayloadAction<Todo>) => {
-      state.todos.push(action.payload);
-    });
-  },
 });
 
 export const selectTodos = (state: RootState) => state.todos;
 
-export const { addTodo, setNewTodo, ping } = todosSlice.actions;
+export const { addTodo, setNewTodo, ping, addTodoAsyncFulfilled, addTodoAsyncFailed } = todosSlice.actions;
 
 // More examples here: https://www.freecodecamp.org/news/beginners-guide-to-rxjs-redux-observables/
 // example of an observable watching for ping action to reply with pong..
-export const pingEpic = (action$: Observable<Action>) =>
+export const pingEpic = (action$: Observable<Action>): Observable<PayloadAction<unknown>> =>
   action$.pipe(
     filter(ping.match),
     delay(1000),
@@ -88,6 +92,27 @@ export const pingEpic = (action$: Observable<Action>) =>
       const k = a as PayloadAction<number>;
       return { type: "todos/pong", payload: k.payload };
     })
+  );
+
+export const addTodoAsyncEpic = (action$: Observable<Action>): Observable<PayloadAction<unknown>> =>
+  action$.pipe(
+    filter(addTodoAsync.match),
+    mergeMap((requestAction) =>
+      ajax
+        .post(
+          "https://reqres.in/api/users",
+          JSON.stringify({
+            name: requestAction.payload,
+          })
+        )
+        .pipe(
+          map((ajaxResponse) => {
+            const data = ajaxResponse.response as { id: string; createdAt: string };
+            return addTodoAsyncFulfilled({ id: data.id, text: requestAction.payload, createdAt: data.createdAt });
+          }),
+          catchError((error: Error) => of(addTodoAsyncFailed(error.message)))
+        )
+    )
   );
 
 export default todosSlice.reducer;

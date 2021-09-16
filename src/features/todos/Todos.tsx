@@ -1,6 +1,6 @@
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
 
-import { addTodoAsync as addTodo, setNewTodo, ping } from "./todoSlice";
+import { addTodoAsync, setNewTodo, ping } from "./todoSlice";
 
 import style from "./Todos.module.css";
 import { useEffect } from "react";
@@ -18,7 +18,7 @@ export function Todos() {
     return () => {
       clearTimeout(cancelInterval);
     };
-  }, []);
+  }, [dispatch]);
 
   return (
     <div>
@@ -42,7 +42,7 @@ export function Todos() {
           dispatch(setNewTodo(evt.target.value));
         }}
       />
-      <button onClick={() => dispatch(addTodo(state.newTodo))}>Add</button>
+      <button onClick={() => dispatch(addTodoAsync(state.newTodo))}>Add</button>
     </div>
   );
 }
