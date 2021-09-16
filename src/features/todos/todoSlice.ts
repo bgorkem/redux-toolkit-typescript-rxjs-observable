@@ -117,6 +117,7 @@ export const addTodoAsyncEpic = (action$: Observable<Action>): Observable<Payloa
           })
         )
         .pipe(
+          delay(5000),
           map((ajaxResponse) => {
             const data = ajaxResponse.response as { id: string; createdAt: string };
             return addTodoAsyncFulfilled({ id: data.id, text: requestAction.payload, createdAt: data.createdAt });

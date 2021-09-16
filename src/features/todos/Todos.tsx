@@ -22,7 +22,12 @@ export function Todos() {
 
   return (
     <div>
-      Todos here
+      Todos
+      {state.pending && (
+        <div className='loader center'>
+          <i className='fa fa-cog fa-spin' />
+        </div>
+      )}
       <ul className={style.todoList}>
         {state.todos.map((t) => (
           <li key={t.id}>
@@ -42,7 +47,9 @@ export function Todos() {
           dispatch(setNewTodo(evt.target.value));
         }}
       />
-      <button onClick={() => dispatch(addTodoAsync(state.newTodo))}>Add</button>
+      <button disabled={state.pending} onClick={() => dispatch(addTodoAsync(state.newTodo))}>
+        Add
+      </button>
     </div>
   );
 }
